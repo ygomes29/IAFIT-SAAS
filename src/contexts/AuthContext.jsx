@@ -57,48 +57,43 @@ export function AuthProvider({ children }) {
   }
 
   async function signUp({ email, password, fullName, academyName, whatsapp }) {
-    // 1. Create the academy
-    const { data: academyData, error: academyError } = await supabase
+    const academyId = crypto.randomUUID()
+
+    // 1. Create the academy without .select() to avoid RLS error before auth is ready
+    const { error: academyError } = await supabase
       .from('academies')
       .insert({
+        id: academyId,
         name: academyName,
         responsible: fullName,
         whatsapp: whatsapp || '',
         email,
       })
-      .select()
-      .single()
 
     if (academyError) throw academyError
 
-    // 2. Sign up the user
+    // 2. Sign up the user (trigger handle_new_user links academy_id and sets role)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: { 
+          full_name: fullName, 
+          academy_id: academyId 
+        },
       },
     })
 
     if (authError) throw authError
 
-    // 3. Link profile to academy
+    // 3. Setup default agents via edge function
     if (authData.user) {
-      await supabase
-        .from('profiles')
-        .update({
-          academy_id: academyData.id,
-          role: 'owner',
-          full_name: fullName,
-        })
-        .eq('id', authData.user.id)
-
-      // 4. Setup default agents via edge function
       await supabase.functions.invoke('setup-academy', {
-        body: { academy_id: academyData.id },
+        body: { academy_id: academyId },
       })
     }
 
+    const academyData = { id: academyId, name: academyName }
     return { user: authData.user, academy: academyData }
   }
 
