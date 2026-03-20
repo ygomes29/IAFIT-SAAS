@@ -1,0 +1,107 @@
+.topbar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: var(--sidebar-width);
+  height: var(--topbar-height);
+  background: rgba(17, 17, 20, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-8);
+  z-index: 90;
+  transition: left var(--transition-base);
+}
+
+.left {
+  display: flex;
+  align-items: center;
+}
+
+.title {
+  font-size: var(--font-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.statusGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.statusChip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  border: 1px solid;
+  transition: all var(--transition-fast);
+}
+
+.connected {
+  color: var(--status-active);
+  border-color: rgba(52, 211, 153, 0.2);
+  background: var(--status-active-bg);
+}
+
+.disconnected {
+  color: var(--status-error);
+  border-color: rgba(248, 113, 113, 0.2);
+  background: var(--status-error-bg);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.dotActive {
+  background: var(--status-active);
+  box-shadow: 0 0 6px var(--status-active);
+}
+
+.dotInactive {
+  background: var(--status-error);
+}
+
+.bellBtn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.bellBtn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.bellDot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+  border: 2px solid var(--bg-secondary);
+}

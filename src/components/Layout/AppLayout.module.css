@@ -1,0 +1,12 @@
+.layout {
+  min-height: 100vh;
+}
+
+.main {
+  margin-left: var(--sidebar-width);
+  margin-top: var(--topbar-height);
+  padding: var(--space-8);
+  min-height: calc(100vh - var(--topbar-height));
+  transition: margin-left var(--transition-base);
+  animation: fadeIn 0.4s ease;
+}

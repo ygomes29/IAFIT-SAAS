@@ -1,0 +1,67 @@
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  transition: all var(--transition-base);
+  animation: fadeIn 0.5s ease forwards;
+}
+
+.card:hover {
+  border-color: var(--border-secondary);
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.iconWrap {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.change {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.positive {
+  color: var(--status-active);
+  background: var(--status-active-bg);
+}
+
+.negative {
+  color: var(--status-error);
+  background: var(--status-error-bg);
+}
+
+.value {
+  font-size: var(--font-2xl);
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+  letter-spacing: -0.5px;
+}
+
+.label {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
