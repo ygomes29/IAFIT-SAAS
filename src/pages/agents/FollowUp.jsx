@@ -1,11 +1,90 @@
-import { UserCheck, Save } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { UserCheck, Save, Loader2, AlertTriangle } from 'lucide-react'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Toggle from '../../components/ui/Toggle'
-import { mockAgents } from '../../data/mockData'
 import styles from './AgentPage.module.css'
+import { useAuth } from '../../contexts/AuthContext'
+import { getAgent, updateAgent } from '../../lib/api'
 
 export default function FollowUp() {
-  const agent = mockAgents.find(a => a.id === 'follow-up')
+  const { academy } = useAuth()
+  const [agent, setAgent] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [formData, setFormData] = useState({})
+
+  useEffect(() => {
+    if (!academy?.id) return
+
+    async function loadAgent() {
+      try {
+        setLoading(true)
+        const data = await getAgent(academy.id, 'follow-up')
+        setAgent(data)
+        setFormData({
+          window: data.config?.window || '48h',
+          channel: data.config?.channel || 'whatsapp',
+          message: data.config?.message || '',
+          active: data.active || false,
+        })
+      } catch (err) {
+        console.error('Error loading agent:', err)
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadAgent()
+  }, [academy?.id])
+
+  const handleSave = async () => {
+    if (!agent) return
+    try {
+      setSaving(true)
+      await updateAgent(agent.id, {
+        active: formData.active,
+        config: {
+          ...agent.config,
+          ...formData,
+        },
+      })
+      setAgent({ ...agent, active: formData.active, config: { ...agent.config, ...formData } })
+    } catch (err) {
+      console.error('Error saving agent:', err)
+      alert('Erro ao salvar: ' + err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className={styles.page} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <Loader2 size={40} className={styles.spinning} style={{ color: '#d4af37' }} />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.errorCard}>
+          <AlertTriangle size={32} color="#ef4444" />
+          <p>Erro ao carregar agente: {error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!agent) {
+    return (
+      <div className={styles.page}>
+        <p>Agente não encontrado. Complete o onboarding primeiro.</p>
+      </div>
+    )
+  }
 
   return (
     <div className={styles.page}>
@@ -26,19 +105,19 @@ export default function FollowUp() {
       {/* Metrics */}
       <div className={styles.metricsGrid}>
         <div className={styles.metricItem}>
-          <div className={styles.metricValue}>{agent.metrics.captured}</div>
+          <div className={styles.metricValue}>{agent.metrics?.captured || 0}</div>
           <div className={styles.metricLabel}>Visitas captadas</div>
         </div>
         <div className={styles.metricItem}>
-          <div className={styles.metricValue}>{agent.metrics.sent}</div>
+          <div className={styles.metricValue}>{agent.metrics?.sent || 0}</div>
           <div className={styles.metricLabel}>Follow-ups enviados</div>
         </div>
         <div className={styles.metricItem}>
-          <div className={styles.metricValue}>{agent.metrics.responseRate}%</div>
+          <div className={styles.metricValue}>{agent.metrics?.response_rate || 0}%</div>
           <div className={styles.metricLabel}>Taxa de resposta</div>
         </div>
         <div className={styles.metricItem}>
-          <div className={styles.metricValue}>{agent.metrics.openOpportunities}</div>
+          <div className={styles.metricValue}>{agent.metrics?.open_opportunities || 0}</div>
           <div className={styles.metricLabel}>Oportunidades abertas</div>
         </div>
       </div>
@@ -51,7 +130,11 @@ export default function FollowUp() {
           <div className={styles.fieldGroup}>
             <div className={styles.field}>
               <label className={styles.fieldLabel}>Janela pós-visita</label>
-              <select className={styles.select} defaultValue="48h">
+              <select
+                className={styles.select}
+                value={formData.window}
+                onChange={(e) => setFormData({ ...formData, window: e.target.value })}
+              >
                 <option value="24h">24 horas</option>
                 <option value="48h">48 horas</option>
                 <option value="72h">72 horas</option>
@@ -59,7 +142,11 @@ export default function FollowUp() {
             </div>
             <div className={styles.field}>
               <label className={styles.fieldLabel}>Canal de envio</label>
-              <select className={styles.select} defaultValue="whatsapp">
+              <select
+                className={styles.select}
+                value={formData.channel}
+                onChange={(e) => setFormData({ ...formData, channel: e.target.value })}
+              >
                 <option value="whatsapp">WhatsApp</option>
                 <option value="sms">SMS</option>
               </select>
@@ -68,7 +155,11 @@ export default function FollowUp() {
 
           <div className={styles.field}>
             <label className={styles.fieldLabel}>Mensagem ativa</label>
-            <textarea className={styles.textarea} defaultValue={agent.config.message} />
+            <textarea
+              className={styles.textarea}
+              value={formData.message}
+              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+            />
           </div>
 
           <div className={styles.toggleRow}>
@@ -76,11 +167,24 @@ export default function FollowUp() {
               <span className={styles.toggleTitle}>Agente ativo</span>
               <span className={styles.toggleDesc}>O follow-up será enviado automaticamente após a visita.</span>
             </div>
-            <Toggle checked={agent.config.active} />
+            <Toggle
+              checked={formData.active}
+              onChange={(checked) => setFormData({ ...formData, active: checked })}
+            />
           </div>
 
           <div className={styles.saveRow}>
-            <button className={styles.saveBtn}><Save size={16} /> Salvar configurações</button>
+            <button
+              className={styles.saveBtn}
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? (
+                <><Loader2 size={16} className={styles.spinning} /> Salvando...</>
+              ) : (
+                <><Save size={16} /> Salvar configurações</>
+              )}
+            </button>
           </div>
         </div>
       </div>

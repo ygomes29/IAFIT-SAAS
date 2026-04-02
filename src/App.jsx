@@ -8,6 +8,7 @@ import FollowUp from './pages/agents/FollowUp'
 import CustomerSuccess from './pages/agents/CustomerSuccess'
 import Reactivation from './pages/agents/Reactivation'
 import Billing from './pages/agents/Billing'
+import Attendance from './pages/agents/Attendance'
 import Integrations from './pages/Integrations'
 import Logs from './pages/Logs'
 import Settings from './pages/Settings'
@@ -82,6 +83,7 @@ export default function App() {
             <Route path="/agents/customer-success" element={<CustomerSuccess />} />
             <Route path="/agents/reactivation" element={<Reactivation />} />
             <Route path="/agents/billing" element={<Billing />} />
+            <Route path="/agents/attendance" element={<Attendance />} />
             <Route path="/integrations" element={<Integrations />} />
             <Route path="/logs" element={<Logs />} />
             <Route path="/settings" element={<Settings />} />

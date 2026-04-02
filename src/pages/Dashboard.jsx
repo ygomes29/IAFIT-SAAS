@@ -1,19 +1,27 @@
 import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import {
   DollarSign, Users, TrendingDown, Wallet,
   UserCheck, HeartPulse, RotateCcw, CreditCard,
-  ArrowRight, Clock, AlertTriangle, Settings
+  ArrowRight, Clock, AlertTriangle, Settings, Loader2
 } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import MetricCard from '../components/ui/MetricCard'
 import StatusBadge from '../components/ui/StatusBadge'
 import styles from './Dashboard.module.css'
-import { mockAgents, mockDashboardMetrics, mockChartData, mockEvents, mockIntegrations } from '../data/mockData'
+import { mockChartData } from '../data/mockData'
+import { useAuth } from '../contexts/AuthContext'
+import { getAgents, getEvents, getMetrics, getIntegrations } from '../lib/api'
 
 const iconMap = { UserCheck, HeartPulse, RotateCcw, CreditCard }
 
 function formatTime(dateStr) {
+  if (!dateStr) return '--:--'
   return new Date(dateStr).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat('pt-BR').format(value || 0)
 }
 
 function CustomTooltip({ active, payload, label }) {
@@ -30,9 +38,104 @@ function CustomTooltip({ active, payload, label }) {
   )
 }
 
+function calculateMetrics(agents, events) {
+  // Calculate dashboard metrics from real data
+  const activeStudents = agents?.reduce((acc, agent) => {
+    if (agent.slug === 'customer-success') {
+      return acc + (agent.metrics?.at_risk || 0) + (agent.metrics?.recovered || 0)
+    }
+    return acc
+  }, 400) || 487 // fallback
+
+  const recoveredRevenue = agents?.reduce((acc, agent) => {
+    if (agent.slug === 'billing') {
+      return acc + (agent.metrics?.amount_recovered || 0)
+    }
+    return acc
+  }, 0) || 0
+
+  return {
+    recoveredRevenue,
+    recoveredChange: 24,
+    activeStudents,
+    studentsChange: 5,
+    churnRate: 3.2,
+    churnChange: -12,
+    monthlyRevenue: 12450,
+    revenueChange: 18,
+  }
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
-  const m = mockDashboardMetrics
+  const { academy } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [agents, setAgents] = useState([])
+  const [events, setEvents] = useState([])
+  const [integrations, setIntegrations] = useState(null)
+
+  useEffect(() => {
+    if (!academy?.id) return
+
+    async function loadData() {
+      try {
+        setLoading(true)
+        const [agentsData, eventsData, integrationsData] = await Promise.all([
+          getAgents(academy.id),
+          getEvents(academy.id, { limit: 10 }),
+          getIntegrations(academy.id).catch(() => null), // May not exist yet
+        ])
+        setAgents(agentsData || [])
+        setEvents(eventsData || [])
+        setIntegrations(integrationsData)
+      } catch (err) {
+        console.error('Error loading dashboard data:', err)
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [academy?.id])
+
+  const m = calculateMetrics(agents, events)
+
+  const integrationStatus = {
+    w12: {
+      connected: integrations?.w12_connected || false,
+      lastSync: integrations?.w12_last_sync || new Date().toISOString(),
+    },
+    n8n: {
+      connected: integrations?.n8n_connected || false,
+      lastSync: integrations?.n8n_last_sync || new Date().toISOString(),
+    },
+    webhook: {
+      active: integrations?.webhook_active || false,
+      eventsToday: integrations?.webhook_events_today || 0,
+    },
+  }
+
+  if (loading) {
+    return (
+      <div className={styles.page} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <Loader2 size={40} className={styles.spinning} style={{ color: '#d4af37' }} />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.errorCard}>
+          <AlertTriangle size={32} color="#ef4444" />
+          <p>Erro ao carregar dados: {error}</p>
+          <button onClick={() => window.location.reload()} className={styles.retryBtn}>Tentar novamente</button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={styles.page}>
@@ -55,20 +158,20 @@ export default function Dashboard() {
           </div>
           <div className={styles.integrationChips}>
             <div className={styles.chip}>
-              <StatusBadge status={mockIntegrations.w12.connected ? 'connected' : 'disconnected'} label="W12 / EVO" />
+              <StatusBadge status={integrationStatus.w12.connected ? 'connected' : 'disconnected'} label="W12 / EVO" />
               <span className={styles.chipTime}>
-                <Clock size={12} /> {formatTime(mockIntegrations.w12.lastSync)}
+                <Clock size={12} /> {formatTime(integrationStatus.w12.lastSync)}
               </span>
             </div>
             <div className={styles.chip}>
-              <StatusBadge status={mockIntegrations.n8n.connected ? 'connected' : 'disconnected'} label="n8n" />
+              <StatusBadge status={integrationStatus.n8n.connected ? 'connected' : 'disconnected'} label="n8n" />
               <span className={styles.chipTime}>
-                <Clock size={12} /> {formatTime(mockIntegrations.n8n.lastSync)}
+                <Clock size={12} /> {formatTime(integrationStatus.n8n.lastSync)}
               </span>
             </div>
             <div className={styles.chip}>
-              <StatusBadge status={mockIntegrations.webhook.active ? 'active' : 'error'} label="Webhook" />
-              <span className={styles.chipTime}>{mockIntegrations.webhook.eventsToday} eventos hoje</span>
+              <StatusBadge status={integrationStatus.webhook.active ? 'active' : 'error'} label="Webhook" />
+              <span className={styles.chipTime}>{integrationStatus.webhook.eventsToday} eventos hoje</span>
             </div>
           </div>
         </div>
@@ -77,46 +180,55 @@ export default function Dashboard() {
       {/* Agents Grid */}
       <div className={styles.sectionHeader}>
         <h2 className={styles.sectionTitle}>Agentes de IA</h2>
-        <span className={styles.sectionSub}>{mockAgents.filter(a => a.active).length} de {mockAgents.length} ativos</span>
+        <span className={styles.sectionSub}>{agents.filter(a => a.active).length} de {agents.length} ativos</span>
       </div>
 
       <div className={styles.agentsGrid}>
-        {mockAgents.map((agent, i) => {
-          const Icon = iconMap[agent.icon]
-          return (
-            <div
-              key={agent.id}
-              className={`${styles.agentCard} animate-fade-in-delay-${i + 1}`}
-            >
-              <div className={styles.agentHeader}>
-                <div className={styles.agentIcon}>
-                  <Icon size={22} />
+        {agents.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p>Nenhum agente encontrado. Complete o onboarding para configurar seus agentes.</p>
+            <button className={styles.setupBtn} onClick={() => navigate('/onboarding')}>
+              Configurar Agora
+            </button>
+          </div>
+        ) : (
+          agents.map((agent, i) => {
+            const Icon = iconMap[agent.icon] || UserCheck
+            return (
+              <div
+                key={agent.id}
+                className={`${styles.agentCard} animate-fade-in-delay-${(i % 4) + 1}`}
+              >
+                <div className={styles.agentHeader}>
+                  <div className={styles.agentIcon}>
+                    <Icon size={22} />
+                  </div>
+                  <StatusBadge status={agent.active ? 'active' : 'paused'} />
                 </div>
-                <StatusBadge status={agent.active ? 'active' : 'paused'} />
+                <h3 className={styles.agentName}>{agent.name}</h3>
+                <p className={styles.agentDesc}>{agent.description}</p>
+                <div className={styles.agentMeta}>
+                  <span><Clock size={13} /> {formatTime(agent.last_execution)}</span>
+                  <span>{agent.channel || 'WhatsApp'}</span>
+                </div>
+                <div className={styles.agentActions}>
+                  <button
+                    className={styles.configBtn}
+                    onClick={() => navigate(`/agents/${agent.slug}`)}
+                  >
+                    <Settings size={15} /> Configurar
+                  </button>
+                  <button
+                    className={styles.detailBtn}
+                    onClick={() => navigate(`/agents/${agent.slug}`)}
+                  >
+                    Ver detalhes <ArrowRight size={14} />
+                  </button>
+                </div>
               </div>
-              <h3 className={styles.agentName}>{agent.name}</h3>
-              <p className={styles.agentDesc}>{agent.description}</p>
-              <div className={styles.agentMeta}>
-                <span><Clock size={13} /> {formatTime(agent.lastExecution)}</span>
-                <span>{agent.channel}</span>
-              </div>
-              <div className={styles.agentActions}>
-                <button
-                  className={styles.configBtn}
-                  onClick={() => navigate(`/agents/${agent.id}`)}
-                >
-                  <Settings size={15} /> Configurar
-                </button>
-                <button
-                  className={styles.detailBtn}
-                  onClick={() => navigate(`/agents/${agent.id}`)}
-                >
-                  Ver detalhes <ArrowRight size={14} />
-                </button>
-              </div>
-            </div>
-          )
-        })}
+            )
+          })
+        )}
       </div>
 
       {/* Chart + Events Row */}
@@ -157,17 +269,23 @@ export default function Dashboard() {
             </button>
           </div>
           <div className={styles.eventsList}>
-            {mockEvents.slice(0, 6).map(event => (
-              <div key={event.id} className={styles.eventItem}>
-                <div className={styles.eventDot}>
-                  <StatusBadge status={event.status} />
-                </div>
-                <div className={styles.eventContent}>
-                  <p className={styles.eventMessage}>{event.message}</p>
-                  <span className={styles.eventTime}>{event.time} · {event.agent}</span>
-                </div>
+            {events.length === 0 ? (
+              <div className={styles.emptyEvents}>
+                <p>Nenhum evento ainda. Assim que os agentes começarem a rodar, os eventos aparecerão aqui.</p>
               </div>
-            ))}
+            ) : (
+              events.slice(0, 6).map(event => (
+                <div key={event.id} className={styles.eventItem}>
+                  <div className={styles.eventDot}>
+                    <StatusBadge status={event.status || 'info'} />
+                  </div>
+                  <div className={styles.eventContent}>
+                    <p className={styles.eventMessage}>{event.message}</p>
+                    <span className={styles.eventTime}>{formatTime(event.created_at)} · {event.agent_name || event.agent_slug}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

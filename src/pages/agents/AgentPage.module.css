@@ -224,3 +224,24 @@
   font-size: var(--font-sm);
   line-height: 1.5;
 }
+
+/* Loading & Utilities */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+.errorCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-8);
+  background: var(--bg-card);
+  border: 1px solid #ef4444;
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
