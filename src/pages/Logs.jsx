@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   UserCheck, HeartPulse, RotateCcw, CreditCard, MessageSquare,
   Clock, Info, Filter, Loader2, RefreshCw
@@ -6,7 +6,9 @@ import {
 import StatusBadge from '../components/ui/StatusBadge'
 import styles from './Logs.module.css'
 import { useAuth } from '../contexts/AuthContext'
-import { getEvents } from '../lib/api'
+import { supabase } from '../lib/supabase'
+
+const ACADEMY_ID = '2a2ab399-b3c1-4f8b-a9c1-a5dc510a619b'
 
 const AGENT_FILTERS = ['Todos', 'follow-up', 'customer-success', 'reactivation', 'billing', 'attendance', 'sistema']
 const AGENT_LABELS = {
@@ -16,6 +18,7 @@ const AGENT_LABELS = {
   'billing': 'Cobrança',
   'attendance': 'Atendimento',
   'sistema': 'Sistema',
+  'system': 'Sistema',
 }
 const STATUS_FILTERS = ['Todos', 'success', 'warning', 'error', 'pending', 'info']
 
@@ -26,6 +29,7 @@ const AGENT_ICONS = {
   'billing': CreditCard,
   'attendance': MessageSquare,
   'sistema': Info,
+  'system': Info,
 }
 
 function formatTime(dateStr) {
@@ -38,20 +42,33 @@ function formatTime(dateStr) {
 
 export default function Logs() {
   const { academy } = useAuth()
+  const academyId = academy?.id || ACADEMY_ID
   const [agentFilter, setAgentFilter] = useState('Todos')
   const [statusFilter, setStatusFilter] = useState('Todos')
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
+  const channelRef = useRef(null)
 
-  async function loadEvents() {
-    if (!academy?.id) return
+  async function loadEvents(agentSlug, status) {
+    if (!academyId) return
     try {
       setLoading(true)
-      const data = await getEvents(academy.id, {
-        limit: 100,
-        agentSlug: agentFilter !== 'Todos' ? agentFilter : undefined,
-        status: statusFilter !== 'Todos' ? statusFilter : undefined,
-      })
+      let query = supabase
+        .from('agent_events')
+        .select('*')
+        .eq('academy_id', academyId)
+        .order('created_at', { ascending: false })
+        .limit(100)
+
+      if (agentSlug && agentSlug !== 'Todos') {
+        query = query.eq('agent_slug', agentSlug)
+      }
+      if (status && status !== 'Todos') {
+        query = query.eq('status', status)
+      }
+
+      const { data, error } = await query
+      if (error) throw error
       setEvents(data || [])
     } catch (err) {
       console.error('Error loading events:', err)
@@ -61,9 +78,48 @@ export default function Logs() {
     }
   }
 
+  // Realtime subscription
   useEffect(() => {
-    loadEvents()
-  }, [academy?.id, agentFilter, statusFilter])
+    if (!academyId) return
+
+    // Unsubscribe previous channel if any
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current)
+    }
+
+    const channel = supabase
+      .channel('agent_events_' + academyId)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'agent_events',
+          filter: `academy_id=eq.${academyId}`,
+        },
+        (payload) => {
+          const newEvent = payload.new
+          // Only add if passes current filters
+          const agentOk = agentFilter === 'Todos' || newEvent.agent_slug === agentFilter
+          const statusOk = statusFilter === 'Todos' || newEvent.status === statusFilter
+          if (agentOk && statusOk) {
+            setEvents(prev => [newEvent, ...prev.slice(0, 99)])
+          }
+        }
+      )
+      .subscribe()
+
+    channelRef.current = channel
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [academyId, agentFilter, statusFilter])
+
+  // Reload when filters change
+  useEffect(() => {
+    loadEvents(agentFilter, statusFilter)
+  }, [academyId, agentFilter, statusFilter])
 
   // Summary: last event per agent type
   const lastByAgent = ['follow-up', 'customer-success', 'billing', 'reactivation'].reduce((acc, slug) => {
@@ -79,7 +135,7 @@ export default function Logs() {
           <h2 className={styles.title}>Logs & Eventos</h2>
           <p className={styles.subtitle}>Acompanhe a operação dos agentes de IA em tempo real.</p>
         </div>
-        <button className={styles.refreshBtn} onClick={loadEvents} disabled={loading}>
+        <button className={styles.refreshBtn} onClick={() => loadEvents(agentFilter, statusFilter)} disabled={loading}>
           <RefreshCw size={15} className={loading ? styles.spinning : ''} />
           Atualizar
         </button>

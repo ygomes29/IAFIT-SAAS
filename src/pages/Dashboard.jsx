@@ -9,19 +9,53 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import MetricCard from '../components/ui/MetricCard'
 import StatusBadge from '../components/ui/StatusBadge'
 import styles from './Dashboard.module.css'
-import { mockChartData } from '../data/mockData'
 import { useAuth } from '../contexts/AuthContext'
-import { getAgents, getEvents, getMetrics, getIntegrations } from '../lib/api'
+import { getAgents, getEvents, getIntegrations, getChartData, getTodayMetrics } from '../lib/api'
 
 const iconMap = { UserCheck, HeartPulse, RotateCcw, CreditCard }
+
+const AGENT_METRICS_MAP = {
+  'follow-up': [
+    { key: 'visits_captured',     label: 'Visitas' },
+    { key: 'followups_sent',      label: 'Enviados' },
+    { key: 'response_rate',       label: 'Resp.', suffix: '%' },
+    { key: 'open_opportunities',  label: 'Oport.' },
+  ],
+  'customer-success': [
+    { key: 'at_risk',       label: 'Em risco' },
+    { key: 'messages_sent', label: 'Msgs' },
+    { key: 'recovered',     label: 'Recuperados' },
+    { key: 'response_rate', label: 'Resp.', suffix: '%' },
+  ],
+  reactivation: [
+    { key: 'inactive_base',    label: 'Base' },
+    { key: 'eligible',         label: 'Elegíveis' },
+    { key: 'campaigns_active', label: 'Campanhas' },
+    { key: 'reactivated',      label: 'Reat.' },
+  ],
+  billing: [
+    { key: 'debtors',          label: 'Devedores' },
+    { key: 'collections_sent', label: 'Cobranças' },
+    { key: 'recovered_count',  label: 'Recuperados' },
+    { key: 'recovered_amount', label: 'R$', prefix: 'R$\u00a0' },
+  ],
+  attendance: [
+    { key: 'conversations_today',    label: 'Conversas' },
+    { key: 'leads_qualified',        label: 'Leads' },
+    { key: 'visits_scheduled',       label: 'Agendados' },
+    { key: 'avg_response_seconds',   label: 'Resp.(s)' },
+  ],
+}
+
+const FALLBACK_CHART = [
+  { month: 'Out', followup: 0, cs: 0, reactivation: 0, billing: 0 },
+  { month: 'Nov', followup: 0, cs: 0, reactivation: 0, billing: 0 },
+  { month: 'Dez', followup: 0, cs: 0, reactivation: 0, billing: 0 },
+]
 
 function formatTime(dateStr) {
   if (!dateStr) return '--:--'
   return new Date(dateStr).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-}
-
-function formatCurrency(value) {
-  return new Intl.NumberFormat('pt-BR').format(value || 0)
 }
 
 function CustomTooltip({ active, payload, label }) {
@@ -38,34 +72,6 @@ function CustomTooltip({ active, payload, label }) {
   )
 }
 
-function calculateMetrics(agents, events) {
-  // Calculate dashboard metrics from real data
-  const activeStudents = agents?.reduce((acc, agent) => {
-    if (agent.slug === 'customer-success') {
-      return acc + (agent.metrics?.at_risk || 0) + (agent.metrics?.recovered || 0)
-    }
-    return acc
-  }, 400) || 487 // fallback
-
-  const recoveredRevenue = agents?.reduce((acc, agent) => {
-    if (agent.slug === 'billing') {
-      return acc + (agent.metrics?.amount_recovered || 0)
-    }
-    return acc
-  }, 0) || 0
-
-  return {
-    recoveredRevenue,
-    recoveredChange: 24,
-    activeStudents,
-    studentsChange: 5,
-    churnRate: 3.2,
-    churnChange: -12,
-    monthlyRevenue: 12450,
-    revenueChange: 18,
-  }
-}
-
 export default function Dashboard() {
   const navigate = useNavigate()
   const { academy } = useAuth()
@@ -74,6 +80,8 @@ export default function Dashboard() {
   const [agents, setAgents] = useState([])
   const [events, setEvents] = useState([])
   const [integrations, setIntegrations] = useState(null)
+  const [chartData, setChartData] = useState(FALLBACK_CHART)
+  const [todayMetrics, setTodayMetrics] = useState({})
 
   useEffect(() => {
     if (!academy?.id) return
@@ -81,14 +89,18 @@ export default function Dashboard() {
     async function loadData() {
       try {
         setLoading(true)
-        const [agentsData, eventsData, integrationsData] = await Promise.all([
+        const [agentsData, eventsData, integrationsData, chart, today] = await Promise.all([
           getAgents(academy.id),
           getEvents(academy.id, { limit: 10 }),
-          getIntegrations(academy.id).catch(() => null), // May not exist yet
+          getIntegrations(academy.id).catch(() => null),
+          getChartData(academy.id).catch(() => []),
+          getTodayMetrics(academy.id).catch(() => ({})),
         ])
         setAgents(agentsData || [])
         setEvents(eventsData || [])
         setIntegrations(integrationsData)
+        setChartData(chart.length > 0 ? chart : FALLBACK_CHART)
+        setTodayMetrics(today)
       } catch (err) {
         console.error('Error loading dashboard data:', err)
         setError(err.message)
@@ -100,16 +112,28 @@ export default function Dashboard() {
     loadData()
   }, [academy?.id])
 
-  const m = calculateMetrics(agents, events)
+  // Top metric cards from today's billing + overall data
+  const billingToday = todayMetrics['billing'] || {}
+  const csToday = todayMetrics['customer-success'] || {}
+  const topMetrics = {
+    recoveredRevenue: billingToday.recovered_amount || 0,
+    recoveredChange: null,
+    activeStudents: agents.filter(a => a.active).length > 0
+      ? (csToday.at_risk != null ? csToday.at_risk : '—')
+      : '—',
+    studentsLabel: 'Alunos em Risco Hoje',
+    recoveredCount: billingToday.recovered_count || 0,
+    collectionsSent: billingToday.collections_sent || 0,
+  }
 
   const integrationStatus = {
     w12: {
       connected: integrations?.w12_connected || false,
-      lastSync: integrations?.w12_last_sync || new Date().toISOString(),
+      lastSync: integrations?.w12_last_sync || null,
     },
     n8n: {
       connected: integrations?.n8n_connected || false,
-      lastSync: integrations?.n8n_last_sync || new Date().toISOString(),
+      lastSync: integrations?.n8n_last_sync || null,
     },
     webhook: {
       active: integrations?.webhook_active || false,
@@ -141,10 +165,10 @@ export default function Dashboard() {
     <div className={styles.page}>
       {/* Metrics Row */}
       <div className={styles.metricsGrid}>
-        <MetricCard icon={DollarSign} label="Receita Recuperada" value={m.recoveredRevenue} prefix="R$ " change={m.recoveredChange} />
-        <MetricCard icon={Users} label="Alunos Ativos" value={m.activeStudents} change={m.studentsChange} />
-        <MetricCard icon={TrendingDown} label="Taxa de Churn" value={m.churnRate} suffix="%" change={m.churnChange} />
-        <MetricCard icon={Wallet} label="Faturamento Mensal" value={m.monthlyRevenue} prefix="R$ " change={m.revenueChange} />
+        <MetricCard icon={DollarSign} label="Receita Recuperada Hoje" value={topMetrics.recoveredRevenue} prefix="R$ " />
+        <MetricCard icon={Users} label="Cobranças Enviadas Hoje" value={topMetrics.collectionsSent} />
+        <MetricCard icon={TrendingDown} label="Recuperados Hoje" value={topMetrics.recoveredCount} />
+        <MetricCard icon={Wallet} label="Ativos" value={agents.filter(a => a.active).length} suffix=" agentes" />
       </div>
 
       {/* Integration Status */}
@@ -194,6 +218,8 @@ export default function Dashboard() {
         ) : (
           agents.map((agent, i) => {
             const Icon = iconMap[agent.icon] || UserCheck
+            const agentMetricsDefs = AGENT_METRICS_MAP[agent.slug] || []
+            const agentMetricsToday = todayMetrics[agent.slug]
             return (
               <div
                 key={agent.id}
@@ -207,6 +233,23 @@ export default function Dashboard() {
                 </div>
                 <h3 className={styles.agentName}>{agent.name}</h3>
                 <p className={styles.agentDesc}>{agent.description}</p>
+
+                {agentMetricsDefs.length > 0 && (
+                  <div className={styles.agentMetrics}>
+                    {agentMetricsDefs.map(({ key, label, suffix, prefix }) => {
+                      const val = agentMetricsToday?.[key] ?? '—'
+                      return (
+                        <div key={key} className={styles.agentMetricItem}>
+                          <span className={styles.agentMetricVal}>
+                            {val !== '—' && prefix ? prefix : ''}{val !== '—' ? val : '—'}{val !== '—' && suffix ? suffix : ''}
+                          </span>
+                          <span className={styles.agentMetricLbl}>{label}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
                 <div className={styles.agentMeta}>
                   <span><Clock size={13} /> {formatTime(agent.last_execution)}</span>
                   <span>{agent.channel || 'WhatsApp'}</span>
@@ -235,10 +278,10 @@ export default function Dashboard() {
       <div className={styles.bottomRow}>
         <div className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Performance dos Agentes</h3>
-          <p className={styles.chartSub}>Ações executadas por mês</p>
+          <p className={styles.chartSub}>Ações executadas — últimos 30 dias</p>
           <div className={styles.chartWrap}>
             <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={mockChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gradGold" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#d4af37" stopOpacity={0.3} />

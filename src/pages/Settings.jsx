@@ -1,16 +1,27 @@
 import { useState, useEffect } from 'react'
 import {
   Building2, User, MessageCircle, Plug, Activity,
-  Shield, Save, Loader2, CheckCircle2
+  Shield, Save, Loader2, CheckCircle2, XCircle
 } from 'lucide-react'
 import styles from './Settings.module.css'
 import { useAuth } from '../contexts/AuthContext'
-import { updateAcademy, getIntegrations, updateIntegrations } from '../lib/api'
+import { supabase } from '../lib/supabase'
+
+function Toast({ toast }) {
+  if (!toast) return null
+  return (
+    <div className={`${styles.toast} ${toast.type === 'error' ? styles.toastError : styles.toastSuccess}`}>
+      {toast.type === 'error' ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
+      {toast.message}
+    </div>
+  )
+}
 
 export default function Settings() {
-  const { academy, profile } = useAuth()
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const { academy, user } = useAuth()
+  const [saving, setSaving] = useState(null) // which section is saving
+  const [toast, setToast] = useState(null)
+  const [integrationId, setIntegrationId] = useState(null)
 
   const [form, setForm] = useState({
     // Academia
@@ -18,9 +29,6 @@ export default function Settings() {
     responsible: '',
     email: '',
     whatsapp: '',
-    // Agente
-    agent_name: '',
-    agent_tone: '',
     // EVO / W12
     evo_instance: '',
     evo_api_url: '',
@@ -33,6 +41,11 @@ export default function Settings() {
     // OpenAI
     openai_api_key: '',
   })
+
+  function showToast(message, type = 'success') {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3500)
+  }
 
   useEffect(() => {
     if (!academy) return
@@ -47,8 +60,14 @@ export default function Settings() {
 
     async function loadIntegrations() {
       try {
-        const data = await getIntegrations(academy.id)
+        const { data, error } = await supabase
+          .from('integrations')
+          .select('*')
+          .eq('academy_id', academy.id)
+          .single()
+        if (error) throw error
         if (data) {
+          setIntegrationId(data.id)
           setForm(prev => ({
             ...prev,
             evo_instance: data.evo_instance || '',
@@ -62,7 +81,7 @@ export default function Settings() {
           }))
         }
       } catch {
-        // integrations podem não existir ainda
+        // integrations may not exist yet
       }
     }
 
@@ -71,19 +90,28 @@ export default function Settings() {
 
   const set = (key) => (e) => setForm(prev => ({ ...prev, [key]: e.target.value }))
 
-  const handleSave = async () => {
+  async function saveAcademy() {
     if (!academy?.id) return
+    setSaving('academy')
     try {
-      setSaving(true)
+      const { error } = await supabase
+        .from('academies')
+        .update({ name: form.name, responsible: form.responsible, email: form.email, whatsapp: form.whatsapp })
+        .eq('id', academy.id)
+      if (error) throw error
+      showToast('Dados da academia salvos!')
+    } catch (err) {
+      showToast('Erro ao salvar: ' + err.message, 'error')
+    } finally {
+      setSaving(null)
+    }
+  }
 
-      await updateAcademy(academy.id, {
-        name: form.name,
-        responsible: form.responsible,
-        email: form.email,
-        whatsapp: form.whatsapp,
-      })
-
-      await updateIntegrations(academy.id, {
+  async function saveIntegrations() {
+    if (!academy?.id) return
+    setSaving('integrations')
+    try {
+      const updates = {
         evo_instance: form.evo_instance,
         evo_api_url: form.evo_api_url,
         evo_api_key: form.evo_api_key,
@@ -92,19 +120,23 @@ export default function Settings() {
         n8n_url: form.n8n_url,
         n8n_api_key: form.n8n_api_key,
         openai_api_key: form.openai_api_key,
-      })
-
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
+      }
+      const { error } = integrationId
+        ? await supabase.from('integrations').update(updates).eq('id', integrationId)
+        : await supabase.from('integrations').insert({ ...updates, academy_id: academy.id })
+      if (error) throw error
+      showToast('Integrações salvas!')
     } catch (err) {
-      alert('Erro ao salvar: ' + err.message)
+      showToast('Erro ao salvar: ' + err.message, 'error')
     } finally {
-      setSaving(false)
+      setSaving(null)
     }
   }
 
   return (
     <div className={styles.page}>
+      <Toast toast={toast} />
+
       <div className={styles.header}>
         <h2 className={styles.title}>Configurações</h2>
         <p className={styles.subtitle}>Gerencie dados da academia, credenciais e integrações.</p>
@@ -135,6 +167,13 @@ export default function Settings() {
               <label className={styles.fieldLabel}>WhatsApp</label>
               <input className={styles.input} value={form.whatsapp} onChange={set('whatsapp')} placeholder="5531999001001" />
             </div>
+          </div>
+          <div className={styles.sectionSave}>
+            <button className={styles.saveBtn} onClick={saveAcademy} disabled={saving === 'academy'}>
+              {saving === 'academy'
+                ? <><Loader2 size={15} className={styles.spinning} /> Salvando...</>
+                : <><Save size={15} /> Salvar dados</>}
+            </button>
           </div>
         </div>
 
@@ -208,9 +247,16 @@ export default function Settings() {
               <input className={styles.input} type="password" value={form.openai_api_key} onChange={set('openai_api_key')} placeholder="sk-••••••••••••••••" />
             </div>
           </div>
+          <div className={styles.sectionSave}>
+            <button className={styles.saveBtn} onClick={saveIntegrations} disabled={saving === 'integrations'}>
+              {saving === 'integrations'
+                ? <><Loader2 size={15} className={styles.spinning} /> Salvando...</>
+                : <><Save size={15} /> Salvar integrações</>}
+            </button>
+          </div>
         </div>
 
-        {/* Permissões */}
+        {/* Conta */}
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
             <div className={styles.sectionIcon}><Shield size={18} /></div>
@@ -218,28 +264,16 @@ export default function Settings() {
           </div>
           <div className={styles.fields}>
             <div className={styles.fieldRow}>
-              <label className={styles.fieldLabel}>Usuário</label>
-              <input className={styles.input} value={profile?.full_name || ''} disabled />
+              <label className={styles.fieldLabel}>E-mail</label>
+              <input className={styles.input} value={user?.email || ''} disabled />
             </div>
             <div className={styles.fieldRow}>
               <label className={styles.fieldLabel}>Função</label>
-              <input className={styles.input} value={profile?.role || 'owner'} disabled />
+              <input className={styles.input} value="owner" disabled />
             </div>
           </div>
         </div>
 
-      </div>
-
-      <div className={styles.saveArea}>
-        <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
-          {saving ? (
-            <><Loader2 size={16} className={styles.spinning} /> Salvando...</>
-          ) : saved ? (
-            <><CheckCircle2 size={16} /> Salvo!</>
-          ) : (
-            <><Save size={16} /> Salvar configurações</>
-          )}
-        </button>
       </div>
     </div>
   )

@@ -371,3 +371,36 @@
   .agentsGrid { grid-template-columns: 1fr; }
   .bottomRow { grid-template-columns: 1fr; }
 }
+
+/* Agent per-day metrics strip */
+.agentMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-1);
+  margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+  background: rgba(255,255,255,0.04);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.agentMetricItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.agentMetricVal {
+  font-size: var(--font-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.agentMetricLbl {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  text-align: center;
+  line-height: 1.2;
+}
