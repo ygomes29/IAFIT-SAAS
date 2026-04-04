@@ -107,8 +107,20 @@ export default function Settings() {
     }
   }
 
+  function isHttpsUrl(str) {
+    if (!str) return true // campo vazio é permitido
+    try { return new URL(str).protocol === 'https:' } catch { return false }
+  }
+
   async function saveIntegrations() {
     if (!academy?.id) return
+    const urlFields = { 'URL Evolution API': form.evo_api_url, 'URL n8n': form.n8n_url }
+    for (const [label, url] of Object.entries(urlFields)) {
+      if (url && !isHttpsUrl(url)) {
+        showToast(`${label} deve começar com https://`, 'error')
+        return
+      }
+    }
     setSaving('integrations')
     try {
       const updates = {
@@ -122,7 +134,7 @@ export default function Settings() {
         openai_api_key: form.openai_api_key,
       }
       const { error } = integrationId
-        ? await supabase.from('integrations').update(updates).eq('id', integrationId)
+        ? await supabase.from('integrations').update(updates).eq('id', integrationId).eq('academy_id', academy.id)
         : await supabase.from('integrations').insert({ ...updates, academy_id: academy.id })
       if (error) throw error
       showToast('Integrações salvas!')

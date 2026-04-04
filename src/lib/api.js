@@ -44,11 +44,13 @@ export async function getAgent(academyId, slug) {
   return data
 }
 
-export async function updateAgent(agentId, updates) {
+export async function updateAgent(agentId, updates, academyId) {
+  if (!academyId) throw new Error('academyId obrigatório')
   const { data, error } = await supabase
     .from('agents')
     .update(updates)
     .eq('id', agentId)
+    .eq('academy_id', academyId)
     .select()
     .single()
   if (error) throw error
@@ -194,7 +196,7 @@ export async function completeOnboarding(academyId, data) {
     for (const [slug, active] of Object.entries(data.agents)) {
       const agent = await getAgent(academyId, slug)
       if (agent) {
-        await updateAgent(agent.id, { active })
+        await updateAgent(agent.id, { active }, academyId)
       }
     }
   }

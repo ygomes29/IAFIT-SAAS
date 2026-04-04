@@ -52,10 +52,10 @@ export default function Reactivation() {
           ...agent.config,
           ...formData,
         },
-      })
+      }, academy.id)
       setAgent({ ...agent, active: formData.active, config: { ...agent.config, ...formData } })
     } catch (err) {
-      console.error('Error saving agent:', err)
+      console.error('Erro ao salvar agente')
       alert('Erro ao salvar: ' + err.message)
     } finally {
       setSaving(false)

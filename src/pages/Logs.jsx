@@ -8,8 +8,6 @@ import styles from './Logs.module.css'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 
-const ACADEMY_ID = '2a2ab399-b3c1-4f8b-a9c1-a5dc510a619b'
-
 const AGENT_FILTERS = ['Todos', 'follow-up', 'customer-success', 'reactivation', 'billing', 'attendance', 'sistema']
 const AGENT_LABELS = {
   'follow-up': 'Follow-up',
@@ -42,7 +40,7 @@ function formatTime(dateStr) {
 
 export default function Logs() {
   const { academy } = useAuth()
-  const academyId = academy?.id || ACADEMY_ID
+  const academyId = academy?.id
   const [agentFilter, setAgentFilter] = useState('Todos')
   const [statusFilter, setStatusFilter] = useState('Todos')
   const [events, setEvents] = useState([])
