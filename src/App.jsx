@@ -11,6 +11,7 @@ const CustomerSuccess = lazy(() => import('./pages/agents/CustomerSuccess'))
 const Reactivation = lazy(() => import('./pages/agents/Reactivation'))
 const Billing = lazy(() => import('./pages/agents/Billing'))
 const Attendance = lazy(() => import('./pages/agents/Attendance'))
+const Birthday = lazy(() => import('./pages/agents/Birthday'))
 const Integrations = lazy(() => import('./pages/Integrations'))
 const Logs = lazy(() => import('./pages/Logs'))
 const Settings = lazy(() => import('./pages/Settings'))
@@ -87,6 +88,7 @@ export default function App() {
             <Route path="/agents/reactivation" element={<Reactivation />} />
             <Route path="/agents/billing" element={<Billing />} />
             <Route path="/agents/attendance" element={<Attendance />} />
+            <Route path="/agents/birthday" element={<Birthday />} />
             <Route path="/integrations" element={<Integrations />} />
             <Route path="/logs" element={<Logs />} />
             <Route path="/settings" element={<Settings />} />

@@ -92,6 +92,28 @@ const DEFAULT_AGENTS = [
       satisfaction: 0,
     },
   },
+  {
+    slug: 'birthday',
+    name: 'Feliz Aniversário',
+    description: 'Parabeniza alunos automaticamente no aniversário com mensagem e oferta especial.',
+    icon: 'Cake',
+    config: {
+      send_time: '09:00',
+      message: '',
+      offer: '',
+      cta: 'Resgatar presente',
+      channel: 'whatsapp',
+      workflow_origin: 'birthday_message',
+      ttl_hours: 24,
+      priority: 15,
+    },
+    metrics: {
+      birthdays_today: 0,
+      messages_sent: 0,
+      responses: 0,
+      converted: 0,
+    },
+  },
 ]
 
 Deno.serve(async (req) => {
@@ -138,7 +160,7 @@ Deno.serve(async (req) => {
       agent_slug: 'sistema',
       event_type: 'academy_setup',
       status: 'success',
-      message: 'Academia configurada com 5 agentes padrão.',
+      message: 'Academia configurada com 6 agentes padrão.',
     })
 
     return new Response(

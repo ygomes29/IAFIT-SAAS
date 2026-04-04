@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Building2, Plug, Webhook, MessageSquare, Bot,
   Check, ChevronRight, ChevronLeft, Zap, Loader,
-  UserCheck, HeartPulse, RotateCcw, CreditCard, CheckCircle2, XCircle
+  UserCheck, HeartPulse, RotateCcw, CreditCard, Cake, CheckCircle2, XCircle
 } from 'lucide-react'
 import Toggle from '../components/ui/Toggle'
 import styles from './Onboarding.module.css'
@@ -21,6 +21,7 @@ const agentOptions = [
   { id: 'customer-success', name: 'Customer Success', desc: 'Identifica alunos sumidos e age antes do churn.', icon: HeartPulse },
   { id: 'reactivation', name: 'Motor de Reativação', desc: 'Reengaja ex-alunos com campanhas cirúrgicas.', icon: RotateCcw },
   { id: 'billing', name: 'Cobrança Inteligente', desc: 'Cobra de forma amigável preservando retenção.', icon: CreditCard },
+  { id: 'birthday', name: 'Feliz Aniversário', desc: 'Parabeniza alunos no aniversário com oferta especial.', icon: Cake },
 ]
 
 export default function Onboarding() {
@@ -29,7 +30,7 @@ export default function Onboarding() {
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null)
   const [webhookTest, setWebhookTest] = useState(null)
-  const [agents, setAgents] = useState({ 'follow-up': true, 'customer-success': true, 'reactivation': true, 'billing': false })
+  const [agents, setAgents] = useState({ 'follow-up': true, 'customer-success': true, 'reactivation': true, 'billing': false, 'birthday': false })
   const [connectionType, setConnectionType] = useState('single')
 
   const simulateTest = (setter) => {

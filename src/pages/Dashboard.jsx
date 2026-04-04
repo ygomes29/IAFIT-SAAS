@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import {
   DollarSign, Users, TrendingDown, Wallet,
-  UserCheck, HeartPulse, RotateCcw, CreditCard,
+  UserCheck, HeartPulse, RotateCcw, CreditCard, Cake,
   ArrowRight, Clock, AlertTriangle, Settings, Loader2
 } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
@@ -12,7 +12,7 @@ import styles from './Dashboard.module.css'
 import { useAuth } from '../contexts/AuthContext'
 import { getAgents, getEvents, getIntegrations, getChartData, getTodayMetrics } from '../lib/api'
 
-const iconMap = { UserCheck, HeartPulse, RotateCcw, CreditCard }
+const iconMap = { UserCheck, HeartPulse, RotateCcw, CreditCard, Cake }
 
 const AGENT_METRICS_MAP = {
   'follow-up': [
@@ -44,6 +44,12 @@ const AGENT_METRICS_MAP = {
     { key: 'leads_qualified',        label: 'Leads' },
     { key: 'visits_scheduled',       label: 'Agendados' },
     { key: 'avg_response_seconds',   label: 'Resp.(s)' },
+  ],
+  birthday: [
+    { key: 'birthdays_today',  label: 'Aniversários' },
+    { key: 'messages_sent',    label: 'Msgs enviadas' },
+    { key: 'responses',        label: 'Respostas' },
+    { key: 'converted',        label: 'Conversões' },
   ],
 }
 

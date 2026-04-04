@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Bot, Plug, ScrollText, Settings, ChevronLeft,
-  UserCheck, HeartPulse, RotateCcw, CreditCard, MessageSquare, Zap, LogOut
+  UserCheck, HeartPulse, RotateCcw, CreditCard, MessageSquare, Cake, Zap, LogOut
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import styles from './Sidebar.module.css'
@@ -20,6 +20,7 @@ const agentNav = [
   { to: '/agents/reactivation', icon: RotateCcw, label: 'Reativação' },
   { to: '/agents/billing', icon: CreditCard, label: 'Cobrança' },
   { to: '/agents/attendance', icon: MessageSquare, label: 'Atendimento' },
+  { to: '/agents/birthday', icon: Cake, label: 'Aniversário' },
 ]
 
 export default function Sidebar() {
